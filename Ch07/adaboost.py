@@ -27,32 +27,43 @@ def loadDataSet(fileName):      #general function to parse tab -delimited floats
         labelMat.append(float(curLine[-1]))
     return dataMat,labelMat
 
-def stumpClassify(dataMatrix,dimen,threshVal,threshIneq):#just classify the data
+#通过阈值比较对数据进行分类，所以这里是一个分类器。
+#just classify the data，dimen表示的是特征的下标。threshVal为阈值，threshIneq为不等号方向
+def stumpClassify(dataMatrix,dimen,threshVal,threshIneq):
+    #首先全部设置为1，然后再将不满足不等号的设置为-1.
     retArray = ones((shape(dataMatrix)[0],1))
-    if threshIneq == 'lt':
+    if threshIneq == 'lt': #若不等号为小于
         retArray[dataMatrix[:,dimen] <= threshVal] = -1.0
-    else:
+    else: #若不等号为大于：'gt'
         retArray[dataMatrix[:,dimen] > threshVal] = -1.0
     return retArray
     
-
+#这是一个单层决策树的生成函数
 def buildStump(dataArr,classLabels,D):
     dataMatrix = mat(dataArr); labelMat = mat(classLabels).T
     m,n = shape(dataMatrix)
+    #numSteps用于在特征的所有可能值上进行遍历，bestStump是一个空字典，用来存储给定权重向量D时所得到的最佳单层决策树的相关信息。
     numSteps = 10.0; bestStump = {}; bestClasEst = mat(zeros((m,1)))
+    #用于寻找可能的最小错误率。初始化为无穷大。
     minError = inf #init error sum, to +infinity
+    #对数据集中的每一个特征，一共n个。（第一层循环）
     for i in range(n):#loop over all dimensions
         rangeMin = dataMatrix[:,i].min(); rangeMax = dataMatrix[:,i].max();
         stepSize = (rangeMax-rangeMin)/numSteps
+        #对每个步长（第二层循环）
         for j in range(-1,int(numSteps)+1):#loop over all range in current dimension
+            #对每个不等号（第三层循环）
             for inequal in ['lt', 'gt']: #go over less than and greater than
+                #设置不同的阈值，进行分类
                 threshVal = (rangeMin + float(j) * stepSize)
                 predictedVals = stumpClassify(dataMatrix,i,threshVal,inequal)#call stump classify with i, j, lessThan
                 errArr = mat(ones((m,1)))
                 errArr[predictedVals == labelMat] = 0
+                #这个数值是分类器与adaboost交互的地方。
                 weightedError = D.T*errArr  #calc total error multiplied by D
                 #print "split: dim %d, thresh %.2f, thresh ineqal: %s, the weighted error is %.3f" % (i, threshVal, inequal, weightedError)
                 if weightedError < minError:
+                    #存储当前最优分类器的信息：
                     minError = weightedError
                     bestClasEst = predictedVals.copy()
                     bestStump['dim'] = i
@@ -60,13 +71,15 @@ def buildStump(dataArr,classLabels,D):
                     bestStump['ineq'] = inequal
     return bestStump,minError,bestClasEst
 
-
+#
 def adaBoostTrainDS(dataArr,classLabels,numIt=40):
     weakClassArr = []
+    #行数：
     m = shape(dataArr)[0]
     D = mat(ones((m,1))/m)   #init D to all equal
     aggClassEst = mat(zeros((m,1)))
     for i in range(numIt):
+        #每一次D都会发生改变，每一次会创建一个弱分类器出来。
         bestStump,error,classEst = buildStump(dataArr,classLabels,D)#build Stump
         #print "D:",D.T
         alpha = float(0.5*log((1.0-error)/max(error,1e-16)))#calc alpha, throw in max(error,eps) to account for error=0

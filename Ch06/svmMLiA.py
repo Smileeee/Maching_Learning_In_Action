@@ -28,15 +28,19 @@ def clipAlpha(aj,H,L):
         aj = L
     return aj
 
+#数据集，类标签，常数C，容错率，取消前最大的循环次数
 def smoSimple(dataMatIn, classLabels, C, toler, maxIter):
     dataMatrix = mat(dataMatIn); labelMat = mat(classLabels).transpose()
     b = 0; m,n = shape(dataMatrix)
+    #m行1列的都为0的列向量矩阵：
     alphas = mat(zeros((m,1)))
     iter = 0
     while (iter < maxIter):
         alphaPairsChanged = 0
         for i in range(m):
+            #fXi是预测的类别：
             fXi = float(multiply(alphas,labelMat).T*(dataMatrix*dataMatrix[i,:].T)) + b
+            #误差：
             Ei = fXi - float(labelMat[i])#if checks if an example violates KKT conditions
             if ((labelMat[i]*Ei < -toler) and (alphas[i] < C)) or ((labelMat[i]*Ei > toler) and (alphas[i] > 0)):
                 j = selectJrand(i,m)
